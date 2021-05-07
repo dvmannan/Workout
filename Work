@@ -1,0 +1,110 @@
+package com.example.work;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.os.Bundle;
+import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.os.PersistableBundle;
+import android.os.SystemClock;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.Chronometer;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class MainActivity extends AppCompatActivity {
+    private Chronometer chronometer;
+    private long pauseOffset;
+    private boolean running;
+    private EditText lastWork;
+    private TextView lastWorkDetails;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        lastWork = findViewById(R.id.last_work);
+        lastWorkDetails = findViewById(R.id.last_title);
+        chronometer = findViewById(R.id.chronometer);
+        chronometer.setFormat("Time: %s");
+        chronometer.setBase(SystemClock.elapsedRealtime());
+        if (savedInstanceState != null) {
+            pauseOffset = savedInstanceState.getLong("chormo");
+            String work = savedInstanceState.getString("work");
+            running = savedInstanceState.getBoolean("running");
+            lastWork.setText(work);
+            chronometer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
+            if (running) {
+                chronometer.start();
+            }
+        }
+        getsavedData();
+    }
+
+    public void startChronometer(View v) {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
+        imm.toggleSoftInput(InputMethodManager.HIDE_IMPLICIT_ONLY, 0);
+
+        if (!running) {
+            if (lastWork.getText().toString().isEmpty()) {
+                Toast.makeText(this, "Enter workout details.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            chronometer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
+            chronometer.start();
+            running = true;
+        }
+    }
+
+    public void pauseChronometer(View v) {
+
+        if (running) {
+            chronometer.stop();
+            pauseOffset = SystemClock.elapsedRealtime() - chronometer.getBase();
+            running = false;
+        }
+    }
+
+    public void resetChronometer(View v) {
+        chronometer.stop();
+        saveData();
+        chronometer.setBase(SystemClock.elapsedRealtime());
+        pauseOffset = 0;
+        lastWork.setText("");
+        running = false;
+        getsavedData();
+    }
+
+    private void saveData() {
+        SharedPreferences.Editor editor = this.getSharedPreferences("workout", Context.MODE_PRIVATE).edit();
+        editor.putString("time", chronometer.getText().toString());
+        editor.putString("work", lastWork.getText().toString());
+        editor.apply();
+        editor.commit();
+    }
+
+    private void getsavedData() {
+        SharedPreferences editor = this.getSharedPreferences("workout", Context.MODE_PRIVATE);
+        String time = editor.getString("time", "");
+        String work = editor.getString("work", "");
+        lastWorkDetails.setText("You spent " + time + "on " + work + " last time.");
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (running) {
+            pauseOffset = SystemClock.elapsedRealtime() - chronometer.getBase();
+        }
+        outState.putLong("chormo", pauseOffset);
+        outState.putString("work", lastWork.getText().toString());
+        outState.putBoolean("running", running);
+
+    }
+}
